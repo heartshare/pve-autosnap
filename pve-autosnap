@@ -1,5 +1,28 @@
 #!/bin/bash
 
+
+#https://raw.githubusercontent.com/nadodrois/pve-autosnap/master/pve-autosnap
+
+# Just add your rules to crontab, example:
+
+# STORAGE=local
+
+# crontab -l > crontab.txt
+
+# cat >> crontab.txt << EOF
+# # Daily snapshot
+# 0 3 * * 1-6 /bin/pve-autosnap --daily --storage=$STORAGE --leave=3
+# # Weekly snapshot
+# 0 3 * * 7 /bin/pve-autosnap --weekly --storage=$STORAGE --leave=3
+# # Monthly snapshot
+# 0 3 1 * * /bin/pve-autosnap --monthly --storage=$STORAGE --leave=4
+# EOF
+
+# crontab crontab.txt
+# rm crontab.txt
+
+
+
 usage ()
 {
       echo "Usage:    pve-snap --mode [--storage STORAGENAME] [--leave NUMBER] [--sleep=NUMBER]"
@@ -9,6 +32,7 @@ usage ()
       echo "     or:  pve-snap -d -s stor -l 4"
       echo
       echo "Arguments:"
+      echo "    -h, --hourly                Run this script in mode for hourly autosnapshots"
       echo "    -d, --daily                 Run this script in mode for daily autosnapshots"
       echo "    -w, --weekly                Run this script in mode for weekly autosnapshots"
       echo "    -m, --monthly               Run this script in mode for monthly autosnapshots"
@@ -26,17 +50,18 @@ usage ()
 
 loadkeys ()
 {
-    OPTS=`getopt -o dwmysl: --long daily,weekly,monthly,yearly,storage,leave,sleep: -n 'parse-options' -- "$@"`
-    
+    OPTS=`getopt -o hdwmys:l:D: --long hourly,daily,weekly,monthly,yearly,storage:,leave:,sleep: -n 'parse-options' -- "$@"`
+
     if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
-    
+
     mode=
     storage=
     leave=
-    sleepmodofier=
-    
+    sleepmodifier=
+
     while true; do
       case "$1" in
+        -h | --hourly  ) mode=hourly; shift ;;
         -d | --daily   ) mode=daily; shift ;;
         -w | --weekly  ) mode=weekly; shift ;;
         -m | --monthly ) mode=monthly; shift ;;
@@ -57,6 +82,9 @@ gensnapname ()
     if [ $mode == "daily" ] ; then
         snapprefix="autodaily"
         snapname="$snapprefix$(date +%y%m%d)"
+    elif [ $mode == "hourly" ] ; then
+        snapprefix="autohourly"
+        snapname="$snapprefix$(date +%y%m%d%H)"
     elif [ $mode == "weekly" ] ; then
         snapprefix="autoweekly"
         snapname="$snapprefix$(date +%y%m%d)"
@@ -72,6 +100,7 @@ gensnapname ()
 getvms ()
 {
 vms=($(/usr/sbin/qm list | awk '{print$1}' | sed 1d))
+lmxs=($(/usr/sbin/pct list | awk '{print$1}' | sed 1d))
 }
 
 cleansnapshots ()
@@ -83,11 +112,11 @@ cleansnapshots ()
         do
             if [ "$i" -ge "$leave" ] ; then
                 echo "vm$vm: Removing snapshot $snap"
-                /usr/sbin/qm delsnapshot $vm $snap 
+                /usr/sbin/qm delsnapshot $vm $snap
             else
                 echo "vm$vm: Saving snapshot $snap"
             fi
-            
+
             let i++
 
         done
@@ -96,13 +125,13 @@ cleansnapshots ()
 
 sleepsnapshot ()
 {
-    if [ "$sleepmodifier" != "" ] ; then 
+    if [ "$sleepmodifier" != "" ] ; then
             disksizes=($(sed '/^\[.*\]$/q' /etc/pve/nodes/$(hostname)/qemu-server/$vm.conf | grep "$storage:vm-$vm" | sed  -r -e 's/.*size=[^0-9]*//g ; s/[^MG0-9]*//g'))
 
             for disksize in "${disksizes[@]}"
             do
                 if [[ $disksize == *"G" ]] ;
-                then disksize=($(echo $disksize | sed 's/[^0-9]//g')) 
+                then disksize=($(echo $disksize | sed 's/[^0-9]//g'))
                 else disksize=$[($(echo $disksize | sed 's/[^0-9]//g'))/1024/1024/1024] ; fi
 
                 sleeptime=$[$disksize/$sleepmodifier]
@@ -127,6 +156,20 @@ do
         cleansnapshots
     fi
 
+done
+for lmx in "${lmxs[@]}"
+do
+    # storagecheck=($(sed '/^\[.*\]$/q' /etc/pve/nodes/$(hostname)/qemu-server/$vm.conf | grep -ci "$storage:[vm-]*$vm"))
+
+    # if [[ "$storagecheck" > "0" ]] ; then
+    #     echo "lmx$lmx: Creating snapshot $snapname"
+    #     /usr/sbin/pct snapshot $lmx $snapname
+    #     sleepsnapshot
+    #     cleansnapshots
+    # fi
+        echo "lmx$lmx: Creating snapshot $snapname"
+        /usr/sbin/pct snapshot $lmx $snapname
+        cleansnapshots
 done
 }
 
