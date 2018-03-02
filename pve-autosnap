@@ -123,6 +123,26 @@ cleansnapshots ()
     fi
 }
 
+cleansnapshots_lxc ()
+{
+    if [[ "$leave" != "" ]] ; then
+        snapshots=($(grep -Po "(?<=\[).*(?=\])" "/etc/pve/nodes/$(hostname)/lxc/$vm.conf" | grep ^"$snapprefix" | tac))
+        i=0
+        for snap in "${snapshots[@]}"
+        do
+            if [ "$i" -ge "$leave" ] ; then
+                echo "vm$vm: Removing snapshot $snap"
+                /usr/sbin/pct delsnapshot $vm $snap
+            else
+                echo "vm$vm: Saving snapshot $snap"
+            fi
+
+            let i++
+
+        done
+    fi
+}
+
 sleepsnapshot ()
 {
     if [ "$sleepmodifier" != "" ] ; then
@@ -169,7 +189,7 @@ do
     # fi
         echo "lmx$lmx: Creating snapshot $snapname"
         /usr/sbin/pct snapshot $lmx $snapname
-        cleansnapshots
+        cleansnapshots_lxc
 done
 }
 
