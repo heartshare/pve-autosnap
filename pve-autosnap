@@ -84,7 +84,7 @@ gensnapname ()
         snapname="$snapprefix$(date +%y%m%d)"
     elif [ $mode == "hourly" ] ; then
         snapprefix="autohourly"
-        snapname="$snapprefix$(date +%y%m%d%H)"
+        snapname="$snapprefix$(date +%y%m%d%H%M)"
     elif [ $mode == "weekly" ] ; then
         snapprefix="autoweekly"
         snapname="$snapprefix$(date +%y%m%d)"
