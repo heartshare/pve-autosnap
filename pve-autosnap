@@ -84,7 +84,7 @@ gensnapname ()
         snapname="$snapprefix$(date +%y%m%d)"
     elif [ $mode == "hourly" ] ; then
         snapprefix="autohourly"
-        snapname="$snapprefix$(date +%y%m%d%H%M)"
+        snapname="$snapprefix$(date +%y%m%d%H)"
     elif [ $mode == "weekly" ] ; then
         snapprefix="autoweekly"
         snapname="$snapprefix$(date +%y%m%d)"
@@ -126,15 +126,15 @@ cleansnapshots ()
 cleansnapshots_lxc ()
 {
     if [[ "$leave" != "" ]] ; then
-        snapshots=($(grep -Po "(?<=\[).*(?=\])" "/etc/pve/nodes/$(hostname)/lxc/$vm.conf" | grep ^"$snapprefix" | tac))
+        snapshots=($(grep -Po "(?<=\[).*(?=\])" "/etc/pve/nodes/$(hostname)/lxc/$lmx.conf" | grep ^"$snapprefix" | tac))
         i=0
         for snap in "${snapshots[@]}"
         do
             if [ "$i" -ge "$leave" ] ; then
-                echo "vm$vm: Removing snapshot $snap"
-                /usr/sbin/pct delsnapshot $vm $snap
+                echo "lxc$lmx: Removing snapshot $snap"
+                /usr/sbin/pct delsnapshot $lmx $snap
             else
-                echo "vm$vm: Saving snapshot $snap"
+                echo "lxc$lmx: Saving snapshot $snap"
             fi
 
             let i++
