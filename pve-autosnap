@@ -1,21 +1,21 @@
 #!/bin/bash
 
 
-#https://raw.githubusercontent.com/nadodrois/pve-autosnap/master/pve-autosnap
+#https://raw.githubusercontent.com/michabbs/pve-autosnap/master/pve-autosnap
 
 # Just add your rules to crontab, example:
 
-# STORAGE=local
+# VMIDS="100 102 105 110"
 
 # crontab -l > crontab.txt
 
 # cat >> crontab.txt << EOF
 # # Daily snapshot
-# 0 3 * * 1-6 /bin/pve-autosnap --daily --storage=$STORAGE --leave=3
+# 0 3 * * 1-6 /bin/pve-autosnap --daily --leave=3 $VMIDS
 # # Weekly snapshot
-# 0 3 * * 7 /bin/pve-autosnap --weekly --storage=$STORAGE --leave=3
+# 0 3 * * 7 /bin/pve-autosnap --weekly --leave=3 $VMIDS
 # # Monthly snapshot
-# 0 3 1 * * /bin/pve-autosnap --monthly --storage=$STORAGE --leave=4
+# 0 3 1 * * /bin/pve-autosnap --monthly --leave=4 $VMIDS
 # EOF
 
 # crontab crontab.txt
@@ -25,11 +25,11 @@
 
 usage ()
 {
-      echo "Usage:    pve-snap --mode [--storage STORAGENAME] [--leave NUMBER] [--sleep=NUMBER]"
+      echo "Usage:    pve-autosnap --mode [--storage STORAGENAME] [--leave NUMBER] [--sleep=NUMBER] [vmid ...]"
       echo
-      echo "Example:  pve-snap --weekly --storage=ceph --leave=2 --sleep=10"
-      echo "     or:  pve-snap --yearly --storage=pve-data"
-      echo "     or:  pve-snap -d -s stor -l 4"
+      echo "Example:  pve-autosnap --weekly --storage=ceph --leave=2 --sleep=10"
+      echo "     or:  pve-autosnap --yearly --storage=pve-data"
+      echo "     or:  pve-autosnap -d -s stor -l 4"
       echo
       echo "Arguments:"
       echo "    -h, --hourly                Run this script in mode for hourly autosnapshots"
@@ -42,6 +42,8 @@ usage ()
       echo "    -l, --leave=NUMBER          Specify the number of snapshots which should will leave, anything longer will be removed"
       echo "    -D, --sleep=NUMBER          Specify the modifier for sleep that would create a delay after each snapshot operation"
       echo "                                (calculate as: NUMBER gigabytes per minute, min 1 minute)"
+      echo
+      echo "    vmid                        List of vm ids to be snapshotted (empty = all)"
       echo
       exit
 }
@@ -75,6 +77,22 @@ loadkeys ()
     done
 
     if [ "$mode" = "" ] ; then echo -e "\nMode is not set\n"; usage; break; fi
+
+    if [ "$#" = "0" ] ; then getvms; return; fi
+
+    vms=()
+    lmxs=()
+    for A in $@; do
+	if ( /usr/sbin/pct list | grep -q "^$A " ); then
+	    echo "${lmxs[@]}"|grep -Fwq "$A" && continue
+	    lmxs+=("$A")
+	elif ( /usr/sbin/qm list | grep -q "^ *$A " ); then
+	    echo "${vms[@]}"|grep -Fwq "$A" && continue
+	    vms+=("$A")
+	else
+	    echo "Virtual machine \"$A\" not found"
+	fi
+    done
 }
 
 gensnapname ()
@@ -187,7 +205,7 @@ do
     #     sleepsnapshot
     #     cleansnapshots
     # fi
-        echo "lmx$lmx: Creating snapshot $snapname"
+        echo "lxc$lmx: Creating snapshot $snapname"
         /usr/sbin/pct snapshot $lmx $snapname
         cleansnapshots_lxc
 done
@@ -195,5 +213,4 @@ done
 
 loadkeys $@
 gensnapname
-getvms
 autosnapshot
