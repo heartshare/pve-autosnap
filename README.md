@@ -4,7 +4,7 @@
 ## Usage
 
 ```bash
-Usage:    pve-autosnap --mode [--storage=STORAGENAME] [--leave=NUMBER] [vmid ...]
+Usage:    pve-autosnap --mode [--storage=STORAGENAME] [--leave=NUMBER] [vmid @pool ...]
 
 Example:  pve-autosnap --weekly --storage=ceph --leave=2
      or:  pve-autosnap --yearly --storage=pve-data
@@ -20,7 +20,8 @@ Arguments:
     -l, --leave=NUMBER          Specify the number of snapshots which should will leave, anything longer will be removed
                                 (0 or not specified will disable removing snapshots)
 
-    vmid                        List of vm ids to be snapshotted (empty = all)"
+    vmid                        List of vm ids to be snapshotted (empty = all)
+    @pool                       Name of vm pool to be snapshotted (case sensitive!)
 ```
 
 ## Enable pve-autosnap

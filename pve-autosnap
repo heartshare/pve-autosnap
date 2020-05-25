@@ -25,7 +25,7 @@
 
 usage ()
 {
-      echo "Usage:    pve-autosnap --mode [--storage STORAGENAME] [--leave NUMBER] [--sleep=NUMBER] [vmid ...]"
+      echo "Usage:    pve-autosnap --mode [--storage STORAGENAME] [--leave NUMBER] [--sleep=NUMBER] [vmid @pool ...]"
       echo
       echo "Example:  pve-autosnap --weekly --storage=ceph --leave=2 --sleep=10"
       echo "     or:  pve-autosnap --yearly --storage=pve-data"
@@ -44,6 +44,7 @@ usage ()
       echo "                                (calculate as: NUMBER gigabytes per minute, min 1 minute)"
       echo
       echo "    vmid                        List of vm ids to be snapshotted (empty = all)"
+      echo "    @pool                       Name of vm pool to be snapshotted (case sensitive!)"
       echo
       exit
 }
@@ -83,17 +84,33 @@ loadkeys ()
     vms=()
     lmxs=()
     for A in $@; do
-	if ( /usr/sbin/pct list | grep -q "^$A " ); then
-	    echo "${lmxs[@]}"|grep -Fwq "$A" && continue
-	    lmxs+=("$A")
-	elif ( /usr/sbin/qm list | grep -q "^ *$A " ); then
-	    echo "${vms[@]}"|grep -Fwq "$A" && continue
-	    vms+=("$A")
+	if ( echo "$A"|grep -q "^@" ); then
+	    POOL=`echo "$A"|sed -e 's/^@//'`
+	    POOLS=`cat /etc/pve/user.cfg|grep "^pool:$POOL::"|cut -d: -f4|tr ',' ' '`
+	    if [ -z "$POOLS" ]; then echo "Pool \"$POOL\" not found"; continue; fi
+	    for B in $POOLS; do
+		add_vms $B
+	    done
 	else
-	    echo "Virtual machine \"$A\" not found"
+	    add_vms $A
 	fi
     done
 }
+
+add_vms ()
+{
+    if ( /usr/sbin/pct list | grep -q "^$1 " ); then
+        echo "${lmxs[@]}"|grep -Fwq "$1" && return
+        lmxs+=("$1")
+    elif ( /usr/sbin/qm list | grep -q "^ *$1 " ); then
+        echo "${vms[@]}"|grep -Fwq "$1" && return
+        vms+=("$1")
+    else
+        echo "Virtual machine \"$1\" not found"
+    fi
+}
+
+
 
 gensnapname ()
 {
