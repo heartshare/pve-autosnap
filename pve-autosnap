@@ -206,7 +206,7 @@ do
 
     if [[ "$storagecheck" > "0" ]] ; then
         echo "vm$vm: Creating snapshot $snapname"
-        /usr/sbin/qm snapshot $vm $snapname
+        /usr/sbin/qm snapshot $vm $snapname || continue
         sleepsnapshot
         cleansnapshots
     fi
@@ -223,7 +223,7 @@ do
     #     cleansnapshots
     # fi
         echo "lxc$lmx: Creating snapshot $snapname"
-        /usr/sbin/pct snapshot $lmx $snapname
+        /usr/sbin/pct snapshot $lmx $snapname || continue
         cleansnapshots_lxc
 done
 }
