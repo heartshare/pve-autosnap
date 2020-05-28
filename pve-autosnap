@@ -62,6 +62,7 @@ loadkeys ()
     leave=
     sleepmodifier=
 
+    eval set -- "$OPTS"
     while true; do
       case "$1" in
         -h | --hourly  ) mode=hourly; shift ;;
